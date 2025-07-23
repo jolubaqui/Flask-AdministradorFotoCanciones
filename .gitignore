@@ -1,0 +1,15 @@
+# Archivos de entorno virtual
+venv/
+*.pyc
+__pycache__/
+
+# Archivos de base de datos
+instance/
+*.db
+
+# Archivos específicos del OS
+.DS_Store
+Thumbs.db
+
+# Archivos de entorno/configuración local
+.env

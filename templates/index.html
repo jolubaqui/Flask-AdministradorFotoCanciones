@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Fotos de Canciones</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>Mis Canciones y sus Fotos</h1>
+    <a href="{{url_for('agregar_cancion')}}" class="button">Agregar nueva Canción</a>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flashes">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    {% if canciones %}
+        <ul class="song-list"> {# Clase para estilizar la lista #}
+            {% for cancion in canciones %}
+                <li class="song-item"> {# Clase para estilizar cada elemento #}
+                    <div class="song-info">
+                        <strong>{{ cancion.titulo }}</strong> - {{ cancion.artista }}
+                    </div>
+                    
+                    <div class="song-actions">
+                        {# Estos enlaces son para funcionalidades futuras del MVP: editar y eliminar #}
+                        {# Asegúrate de que las rutas 'editar_cancion' y 'eliminar_cancion' existan en app.py #}
+                        {# Nota: Para eliminar, generalmente se usa un formulario POST por seguridad, no un simple enlace GET #}
+                        <a href="{{ url_for('editar_cancion', id=cancion.id) }}" class="action-button edit-button">Editar</a>
+                        <a href="{{ url_for('eliminar_cancion', id=cancion.id) }}" class="action-button delete-button">Eliminar</a>
+                        {# Nuevo: Botón para subir a la web, aunque la lógica estará en app.py #}
+                        {% if cancion.ruta_foto %}
+                            <a href="{{ url_for('subir_a_web', id=cancion.id) }}" class="action-button upload-button">Subir a Web</a>
+                        {% endif %}
+                    </div>
+
+                    <div class="song-image">
+                        {% if cancion.ruta_foto %}
+                            {# CORRECCIÓN IMPORTANTE AQUÍ #}
+                            {# filename debe ser la ruta relativa desde la carpeta 'static' #}
+                            {# Si en app.py guardas 'fotos_canciones/nombre_foto.jpg', entonces esto es correcto #}
+                            <img src="{{ url_for('static', filename=cancion.ruta_foto) }}" alt="Foto de {{ cancion.titulo }}" class="foto-cancion">
+                        {% else %}
+                            <span class="no-photo">No hay foto disponible</span>
+                        {% endif %}
+                    </div>
+                    {# Si tu DB tiene 'url_web_foto' puedes mostrarla también aquí #}
+                    {% if cancion.url_web_foto %}
+                        <div class="web-url">
+                            URL Web: <a href="{{ cancion.url_web_foto }}" target="_blank">{{ cancion.url_web_foto }}</a>
+                        </div>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No hay canciones disponibles. ¡Agrega una!</p>
+    {% endif %}
+    
+</body>
+</html>
