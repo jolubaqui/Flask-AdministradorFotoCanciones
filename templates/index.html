@@ -28,6 +28,24 @@
                         <strong>{{ cancion.titulo }}</strong> - {{ cancion.artista }}
                     </div>
                     
+                     <div class="song-image">
+                        {% if cancion.ruta_foto %}
+                            <img src="{{ url_for('static', filename=cancion.ruta_foto) }}" alt="Foto de {{ cancion.titulo }}" class="foto-cancion">
+                        {% else %}
+                            <span class="no-photo">No hay foto disponible</span>
+                        {% endif %}
+                    </div>
+
+                        {% if cancion.letra %}
+                    <div class="song-lyrics-preview">
+                        <p>{{ cancion.letra[:300] }}
+                            {% if cancion.letra | length > 300 %}
+                            ...
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+
                     <div class="song-actions">
                         <a href="{{ url_for('editar_cancion', id=cancion.id) }}" class="action-button edit-button">Editar</a>
                         <form action="{{ url_for('eliminar_cancion', id=cancion.id) }}" method="post" style="display:inline;">
@@ -42,13 +60,7 @@
                         {% endif %}
                     </div>
 
-                    <div class="song-image">
-                        {% if cancion.ruta_foto %}
-                            <img src="{{ url_for('static', filename=cancion.ruta_foto) }}" alt="Foto de {{ cancion.titulo }}" class="foto-cancion">
-                        {% else %}
-                            <span class="no-photo">No hay foto disponible</span>
-                        {% endif %}
-                    </div>
+                   
                     
                     {% if cancion.url_web_foto %}
                         <div class="web-url">
