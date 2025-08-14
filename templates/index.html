@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Fotos de Canciones</title>
+    <title>Letras & Fotos</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Mis Canciones y sus Fotos</h1>
+    <h1>Catálogo Musical de Letras e Imágenes</h1>
     <div class="header-actions"> <a href="{{ url_for('agregar_cancion') }}" class="button">Agregar nueva Canción</a>
         <div class="search-container">
             <input type="text" id="searchInput" placeholder="Buscar canción por título..." onkeyup="buscarCanciones()">
@@ -43,21 +43,21 @@
                         </div>
                         
                         
-                        {% if cancion.url_web_foto %}
-                            <div class="web-url">
-                                URL Web: <a href="{{ cancion.url_web_foto }}" target="_blank">{{ cancion.url_web_foto }}</a>
-                            </div>
-                        {% endif %}
+                       
 
                         {% if cancion.letra %}
-                            <div class="song-lyrics-preview">
-                                <p>{{ cancion.letra[:300] }}
-                                    {% if cancion.letra | length > 300 %}
-                                        ...
-                                    {% endif %}
-                                </p>
-                            </div>
-                        {% endif %}
+                        <div class="song-lyrics-preview" id="lyrics-preview-{{ cancion.id }}">
+<p>{{ cancion.letra[:300] }}
+{% if cancion.letra | length > 300 %}
+... <span class="read-more" data-target="full-lyrics-{{ cancion.id }}">Leer más</span>
+{% endif %}
+</p>
+<div id="full-lyrics-{{ cancion.id }}" class="full-lyrics" style="display: none;">
+<p>{{ cancion.letra }} <span class="read-less" data-target="lyrics-preview-{{ cancion.id }}">Leer menos</span></p>
+</div>
+<button class="copy-lyrics-button" data-lyrics-id="lyrics-preview-{{ cancion.id }}">Copiar Letra</button>
+</div>
+{% endif %}
                         <div class="song-actions">
                             <a href="{{ url_for('editar_cancion', id=cancion.id) }}" class="action-button edit-button">Editar</a>
                             <form action="{{ url_for('eliminar_cancion', id=cancion.id) }}" method="post" style="display:inline;">
@@ -71,6 +71,11 @@
                                 </form>
                             {% endif %}
                         </div>
+                        {% if cancion.url_web_foto %}
+                            <div class="web-url">
+                                URL Web: <a href="{{ cancion.url_web_foto }}" target="_blank">{{ cancion.url_web_foto }}</a>
+                            </div>
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>
@@ -130,7 +135,26 @@
                     </li>
             `;
             return html;
+
+        
+        
         }
+        document.addEventListener(&#39;click&#39;, function(event) {
+    if (event.target.classList.contains(&#39;copy-lyrics-button&#39;)) {
+        const lyricsId = event.target.dataset.lyricsId;
+        const lyricsElement = document.getElementById(lyricsId).querySelector(&#39;p&#39;);
+        if (lyricsElement) {
+            navigator.clipboard.writeText(lyricsElement.innerText)
+                .then(() =&gt; {
+                    alert(&#39;¡Letra copiada al portapapeles!&#39;);
+                })
+                .catch(err =&gt; {
+                    console.error(&#39;Error al copiar la letra:&#39;, err);
+                    alert(&#39;No se pudo copiar la letra.&#39;);
+                });
+        }
+    }
+});
 
         // Función principal que se activa al escribir en el campo de búsqueda
         function buscarCanciones() {

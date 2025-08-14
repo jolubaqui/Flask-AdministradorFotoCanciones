@@ -279,3 +279,65 @@ form input[type="submit"]:hover {
     color: #ccc;
     cursor: not-allowed;
 }
+/* --- AJUSTES PARA PANTALLAS PEQUEÑAS (Responsive) --- */
+@media (max-width: 768px) {
+    body {
+        padding: 10px; /* Reduce el padding en el cuerpo de la página */
+    }
+    
+    h1 {
+        font-size: 24px; /* Reduce el tamaño del título principal */
+    }
+
+    .song-list {
+        padding: 0;
+    }
+
+    .song-item {
+        flex-direction: column; /* Apila los elementos verticalmente */
+        align-items: center; /* Centra los elementos */
+        padding: 15px; /* Ajusta el padding del elemento de la lista */
+    }
+
+    .song-info {
+        text-align: center;
+        margin-bottom: 10px;
+    }
+    
+    .song-image {
+        margin: 10px 0;
+    }
+
+    .foto-cancion {
+        max-width: 100%; /* Asegura que las imágenes no desborden el contenedor */
+        height: auto;
+    }
+
+    .song-actions {
+        flex-direction: column; /* Apila los botones de acción */
+        gap: 8px; /* Espacio entre los botones apilados */
+        margin-top: 10px;
+    }
+    
+    .action-button {
+        width: 100%; /* Hace que los botones de acción ocupen todo el ancho */
+        padding: 10px; /* Aumenta el padding para que sean más fáciles de tocar */
+    }
+
+    .search-container {
+        padding: 0 10px;
+    }
+
+    #searchInput {
+        font-size: 14px; /* Reduce el tamaño de la fuente del buscador */
+    }
+
+    .pagination a {
+        font-size: 14px; /* Reduce el tamaño de los enlaces de paginación */
+    }
+    
+    .pagination .page-link {
+        padding: 6px 10px;
+        margin: 0 2px;
+    }
+}
