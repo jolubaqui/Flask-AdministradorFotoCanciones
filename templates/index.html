@@ -8,10 +8,10 @@
 </head>
 <body>
     <h1>Mis Canciones y sus Fotos</h1>
-    <a href="{{ url_for('agregar_cancion') }}" class="button">Agregar nueva Canción</a>
-
-    <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Buscar canción por título..." onkeyup="buscarCanciones()">
+    <div class="header-actions"> <a href="{{ url_for('agregar_cancion') }}" class="button">Agregar nueva Canción</a>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Buscar canción por título..." onkeyup="buscarCanciones()">
+        </div>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}

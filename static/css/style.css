@@ -14,6 +14,14 @@ h1 {
     margin-bottom: 30px;
     font-size: 2.2em; /* Un poco más grande */
 }
+/* Estilos para el contenedor de botones y buscador */
+.header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centra los elementos horizontalmente */
+    gap: 15px; /* Espacio entre los elementos (botón y buscador) */
+    margin-bottom: 20px; /* Espacio debajo de este bloque */
+}
 
 /* Estilos para Botones y Enlaces de Acción */
 .action-button {
@@ -228,14 +236,12 @@ form input[type="submit"]:hover {
 }
 /* Estilos para el buscador */
 .search-container {
-    display: flex;
-    justify-content: center;
-    margin: 20px 0;
+    width: 100%;
+    max-width: 600px;
 }
 
 #searchInput {
     width: 100%;
-    max-width: 600px;
     padding: 10px;
     font-size: 16px;
     border: 1px solid #ccc;
