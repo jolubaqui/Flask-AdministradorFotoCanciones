@@ -8,7 +8,8 @@
 </head>
 <body>
     <h1>Catálogo Musical de Letras e Imágenes</h1>
-    <div class="header-actions"> <a href="{{ url_for('agregar_cancion') }}" class="button">Agregar nueva Canción</a>
+    <div class="header-actions">
+        <a href="{{ url_for('agregar_cancion') }}" class="button">Agregar nueva Canción</a>
         <div class="search-container">
             <input type="text" id="searchInput" placeholder="Buscar canción por título..." onkeyup="buscarCanciones()">
         </div>
@@ -25,145 +26,165 @@
     {% endwith %}
 
     {% if canciones %}
-        <div id="song-list-container"> <ul class="song-list" id="initial-song-list">
+        <div id="song-list-container">
+            <ul class="song-list" id="initial-song-list">
                 {% for cancion in canciones %}
-                    <li class="song-item">
-                        <div class="song-info">
-                            <strong>{{ cancion.titulo }}</strong> 
-                        </div>
-                        <br>
-                        
+    <li class="song-item">
+        <div class="song-info">
+            <strong>{{ cancion.titulo }}</strong>
+        </div>
+        
+        <div class="song-media-actions"> <div class="song-image">
+                {% if cancion.ruta_foto %}
+                    <a href="{{ url_for('static', filename=cancion.ruta_foto) }}" download="{{ cancion.titulo | replace(' ', '_') }}.jpg">
+                        <img src="{{ url_for('static', filename=cancion.ruta_foto) }}" alt="Foto de {{ cancion.titulo }}" class="foto-cancion">
+                    </a>
+                {% else %}
+                    <span class="no-photo">No hay foto disponible</span>
+                {% endif %}
+            </div>
 
-                        <div class="song-image">
-                            {% if cancion.ruta_foto %}
-                                <img src="{{ url_for('static', filename=cancion.ruta_foto) }}" alt="Foto de {{ cancion.titulo }}" class="foto-cancion">
-                            {% else %}
-                                <span class="no-photo">No hay foto disponible</span>
-                            {% endif %}
-                        </div>
-                        
-                        
-                       
+            {% if cancion.letra %}
+                <button class="copy-lyrics-button" data-lyrics-id="lyrics-preview-{{ cancion.id }}">Copiar Letra</button>
+            {% endif %}
+        </div> {% if cancion.letra %}
+            <div class="song-lyrics-preview" id="lyrics-preview-{{ cancion.id }}">
+                <p>{{ cancion.letra[:300] }}
+                    {% if cancion.letra | length > 300 %}
+                        ... <span class="read-more" data-target="full-lyrics-{{ cancion.id }}">Leer más</span>
+                    {% endif %}
+                </p>
+                <div id="full-lyrics-{{ cancion.id }}" class="full-lyrics" style="display: none;">
+                    <p>{{ cancion.letra }} <span class="read-less" data-target="lyrics-preview-{{ cancion.id }}">Leer menos</span></p>
+                </div>
+            </div>
+        {% endif %}
 
-                        {% if cancion.letra %}
-                        <div class="song-lyrics-preview" id="lyrics-preview-{{ cancion.id }}">
-<p>{{ cancion.letra[:300] }}
-{% if cancion.letra | length > 300 %}
-... <span class="read-more" data-target="full-lyrics-{{ cancion.id }}">Leer más</span>
-{% endif %}
-</p>
-<div id="full-lyrics-{{ cancion.id }}" class="full-lyrics" style="display: none;">
-<p>{{ cancion.letra }} <span class="read-less" data-target="lyrics-preview-{{ cancion.id }}">Leer menos</span></p>
-</div>
-<button class="copy-lyrics-button" data-lyrics-id="lyrics-preview-{{ cancion.id }}">Copiar Letra</button>
-</div>
-{% endif %}
-                        <div class="song-actions">
-                            <a href="{{ url_for('editar_cancion', id=cancion.id) }}" class="action-button edit-button">Editar</a>
-                            <form action="{{ url_for('eliminar_cancion', id=cancion.id) }}" method="post" style="display:inline;">
-                                <button type="submit" class="action-button delete-button" onclick="return confirm('¿Estás seguro de que quieres eliminar esta canción?');">
-                                    Eliminar
-                                </button>
-                            </form>
-                            {% if cancion.ruta_foto %}
-                                <form action="{{ url_for('subir_a_web', id=cancion.id) }}" method="post" style="display:inline;">
-                                    <button type="submit" class="action-button upload-button">Subir a Web</button>
-                                </form>
-                            {% endif %}
-                        </div>
-                        {% if cancion.url_web_foto %}
-                            <div class="web-url">
-                                URL Web: <a href="{{ cancion.url_web_foto }}" target="_blank">{{ cancion.url_web_foto }}</a>
-                            </div>
-                        {% endif %}
-                    </li>
-                {% endfor %}
+        <div class="song-actions">
+            </div>
+        
+        </li>
+{% endfor %}
             </ul>
-        </div> {% else %}
+        </div>
+        <div class="pagination">
+            {% if page > 1 %}
+            <a href="{{ url_for('index', page=page - 1) }}" class="page-link">&laquo; Anterior</a>
+            {% else %}
+            <span class="page-link disabled">&laquo; Anterior</span>
+            {% endif %}
+
+            {% for p in range(1, total_paginas + 1) %}
+            <a href="{{ url_for('index', page=p) }}" class="page-link {% if p == page %}active{% endif %}">{{ p }}</a>
+            {% endfor %}
+
+            {% if page < total_paginas %}
+            <a href="{{ url_for('index', page=page + 1) }}" class="page-link">Siguiente &raquo;</a>
+            {% else %}
+            <span class="page-link disabled">Siguiente &raquo;</span>
+            {% endif %}
+        </div>
+    {% else %}
         <p>No hay canciones disponibles. ¡Agrega una!</p>
     {% endif %}
 
     <script>
-        // Función para construir el HTML de una canción a partir de los datos
         function buildSongItem(cancion) {
-            // Lógica para truncar la letra a 300 caracteres
-            let lyricsPreview = '';
+            // Lógica para truncar la letra a 300 caracteres y añadir el botón de copiar
+            let lyricsHtml = '';
             if (cancion.letra) {
                 const truncatedLyrics = cancion.letra.length > 300 ? cancion.letra.substring(0, 300) + '...' : cancion.letra;
-                lyricsPreview = `<div class="song-lyrics-preview"><p>${truncatedLyrics}</p></div>`;
+                lyricsHtml = `
+                    <div class="song-lyrics-preview" id="lyrics-preview-${cancion.id}">
+                        <p>${truncatedLyrics}</p>
+                        <button class="copy-lyrics-button" data-lyrics-id="lyrics-preview-${cancion.id}">Copiar Letra</button>
+                    </div>`;
             }
-
+            // Lógica para la letra y el botón de copiar
+            let lyricsPreview = '';
+            let copyButton = '';
+            if (cancion.letra) {
+                const truncatedLyrics = cancion.letra.length > 300 ? cancion.letra.substring(0, 300) + '...' : cancion.letra;
+                lyricsPreview = `<div class="song-lyrics-preview" id="lyrics-preview-${cancion.id}"><p>${truncatedLyrics}</p></div>`;
+                copyButton = `<button class="copy-lyrics-button" data-lyrics-id="lyrics-preview-${cancion.id}">Copiar Letra</button>`;
+            }
+            // Lógica para la foto con enlace de descarga
+            let photoHtml = cancion.ruta_foto ?
+            `<div class="song-image">
+            <a href="/static/${cancion.ruta_foto}" download="${cancion.titulo.replace(' ', '_')}.jpg">
+                 <img src="/static/${cancion.ruta_foto}" alt="Foto de ${cancion.titulo}" class="foto-cancion">
+             </a>
+            </div>` :
+            `<div class="song-image"><span class="no-photo">No hay foto disponible</span></div>`;
+    
             // Lógica para la URL web
             let webUrl = '';
             if (cancion.url_web_foto) {
                 webUrl = `<div class="web-url">URL Web: <a href="${cancion.url_web_foto}" target="_blank">${cancion.url_web_foto}</a></div>`;
             }
 
-            // Lógica para la foto
-            let photoHtml = cancion.ruta_foto ?
-                `<img src="/static/${cancion.ruta_foto}" alt="Foto de ${cancion.titulo}" class="foto-cancion">` :
-                `<span class="no-photo">No hay foto disponible</span>`;
+            
             
             // Lógica para el botón de subir a la web
             let uploadButton = cancion.ruta_foto ? `
                 <form action="/subir_a_web/${cancion.id}" method="post" style="display:inline;">
                     <button type="submit" class="action-button upload-button">Subir a Web</button>
                 </form>` : '';
+
             let html = `
-                <li class="song-item">
-                    <div class="song-info">
-                        <strong>${cancion.titulo}</strong>
-                    </div>
-                    
-                    
+        <li class="song-item">
+            <div class="song-info">
+                <strong>${cancion.titulo}</strong>
+            </div>
+            
+            <div class="song-media-actions">
+                ${photoHtml}
+                ${copyButton}
+            </div>
 
-                    <div class="song-image">
-                        ${photoHtml}
-                    </div>
-                    
-                    ${lyricsPreview}
-                    <div class="song-actions">
-                        <a href="/editar/${cancion.id}" class="action-button edit-button">Editar</a>
-                        <form action="/eliminar/${cancion.id}" method="post" style="display:inline;">
-                            <button type="submit" class="action-button delete-button" onclick="return confirm('¿Estás seguro de que quieres eliminar esta canción?');">
-                                Eliminar
-                            </button>
-                        </form>
-                        ${uploadButton}
-                        
-                    </div>
-                    </li>
-            `;
-            return html;
+            ${lyricsPreview}
 
-        
-        
+            <div class="song-actions">
+                <a href="/editar/${cancion.id}" class="action-button edit-button">Editar</a>
+                <form action="/eliminar/${cancion.id}" method="post" style="display:inline;">
+                    <button type="submit" class="action-button delete-button" onclick="return confirm('¿Estás seguro de que quieres eliminar esta canción?');">
+                        Eliminar
+                    </button>
+                </form>
+                ${uploadButton}
+            </div>
+            ${webUrl}
+        </li>
+    `;
+    return html;
         }
-        document.addEventListener(&#39;click&#39;, function(event) {
-    if (event.target.classList.contains(&#39;copy-lyrics-button&#39;)) {
-        const lyricsId = event.target.dataset.lyricsId;
-        const lyricsElement = document.getElementById(lyricsId).querySelector(&#39;p&#39;);
-        if (lyricsElement) {
-            navigator.clipboard.writeText(lyricsElement.innerText)
-                .then(() =&gt; {
-                    alert(&#39;¡Letra copiada al portapapeles!&#39;);
-                })
-                .catch(err =&gt; {
-                    console.error(&#39;Error al copiar la letra:&#39;, err);
-                    alert(&#39;No se pudo copiar la letra.&#39;);
-                });
-        }
-    }
-});
 
-        // Función principal que se activa al escribir en el campo de búsqueda
+        document.addEventListener('click', function(event) {
+            if (event.target.classList.contains('copy-lyrics-button')) {
+                const lyricsId = event.target.dataset.lyricsId;
+                // La lógica aquí debe obtener todo el texto, no solo el truncado.
+                // Podrías ajustar tu `buildSongItem` para incluir el texto completo.
+                // Por ahora, funciona con el texto visible.
+                const lyricsElement = document.getElementById(lyricsId).querySelector('p');
+                if (lyricsElement) {
+                    navigator.clipboard.writeText(lyricsElement.innerText.replace('...', '').trim())
+                        .then(() => {
+                            alert('¡Letra copiada al portapapeles!');
+                        })
+                        .catch(err => {
+                            console.error('Error al copiar la letra:', err);
+                            alert('No se pudo copiar la letra.');
+                        });
+                }
+            }
+        });
+
         function buscarCanciones() {
             const query = document.getElementById('searchInput').value;
             const songListContainer = document.getElementById('song-list-container');
-
-            // Hacemos una llamada a la nueva ruta /buscar de Flask
+            
             fetch(`/buscar?q=${query}`)
-                .then(response => response.json()) // La respuesta viene como JSON, la convertimos a un objeto JavaScript
+                .then(response => response.json())
                 .then(canciones => {
                     let htmlContent = `<ul class="song-list">`;
                     if (canciones.length > 0) {
@@ -175,30 +196,13 @@
                     }
                     htmlContent += `</ul>`;
                     
-                    songListContainer.innerHTML = htmlContent; // Reemplazamos el contenido de la lista
+                    songListContainer.innerHTML = htmlContent;
                 })
                 .catch(error => {
                     console.error('Error en la búsqueda:', error);
                     songListContainer.innerHTML = `<p class="error">Ocurrió un error al buscar las canciones.</p>`;
                 });
         }
-    </script> 
-    <div class="pagination">
-    {% if page > 1 %}
-    <a href="{{ url_for('index', page=page - 1) }}" class="page-link">&laquo; Anterior</a>
-    {% else %}
-    <span class="page-link disabled">&laquo; Anterior</span>
-    {% endif %}
-
-    {% for p in range(1, total_paginas + 1) %}
-    <a href="{{ url_for('index', page=p) }}" class="page-link {% if p == page %}active{% endif %}">{{ p }}</a>
-    {% endfor %}
-
-    {% if page < total_paginas %}
-    <a href="{{ url_for('index', page=page + 1) }}" class="page-link">Siguiente &raquo;</a>
-    {% else %}
-    <span class="page-link disabled">Siguiente &raquo;</span>
-    {% endif %}
-</div>
+    </script>
 </body>
 </html>

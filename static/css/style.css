@@ -279,6 +279,14 @@ form input[type="submit"]:hover {
     color: #ccc;
     cursor: not-allowed;
 }
+
+/* Estilo para el nuevo contenedor de la imagen y el botón Copiar Letra */
+.song-media-actions {
+    display: flex;
+    align-items: center; /* Alinea los elementos verticalmente */
+    gap: 15px; /* Espacio entre la imagen y el botón */
+    margin-bottom: 10px; /* Espacio debajo de este bloque */
+}
 /* --- AJUSTES PARA PANTALLAS PEQUEÑAS (Responsive) --- */
 @media (max-width: 768px) {
     body {
