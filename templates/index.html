@@ -159,6 +159,22 @@
                 });
         }
     </script> 
-    
+    <div class="pagination">
+    {% if page > 1 %}
+    <a href="{{ url_for('index', page=page - 1) }}" class="page-link">&laquo; Anterior</a>
+    {% else %}
+    <span class="page-link disabled">&laquo; Anterior</span>
+    {% endif %}
+
+    {% for p in range(1, total_paginas + 1) %}
+    <a href="{{ url_for('index', page=p) }}" class="page-link {% if p == page %}active{% endif %}">{{ p }}</a>
+    {% endfor %}
+
+    {% if page < total_paginas %}
+    <a href="{{ url_for('index', page=page + 1) }}" class="page-link">Siguiente &raquo;</a>
+    {% else %}
+    <span class="page-link disabled">Siguiente &raquo;</span>
+    {% endif %}
+</div>
 </body>
 </html>

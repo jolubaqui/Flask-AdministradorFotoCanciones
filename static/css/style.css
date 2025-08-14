@@ -242,3 +242,34 @@ form input[type="submit"]:hover {
     border-radius: 5px;
     text-align: center;
 }
+/* Estilos para la paginación */
+.pagination {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.page-link {
+    display: inline-block;
+    padding: 8px 12px;
+    margin: 0 4px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #007bff;
+    transition: background-color 0.3s ease;
+}
+
+.page-link:hover {
+    background-color: #f0f0f0;
+}
+
+.page-link.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.page-link.disabled {
+    color: #ccc;
+    cursor: not-allowed;
+}

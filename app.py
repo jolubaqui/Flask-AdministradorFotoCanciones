@@ -8,6 +8,9 @@ import cloudinary.uploader
 import cloudinary.api
 from flask import Flask, jsonify
 
+# Constante para la paginación
+CANCIONES_POR_PAGINA = 5
+
 # Define la ruta base del proyecto
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 # ¡IMPORTANTE! Las fotos ahora se servirán como estáticas. Es buena práctica que estén dentro de 'static'
@@ -88,11 +91,33 @@ with app.app_context():
 # --- Rutas de la Aplicación ---
 @app.route('/')
 def index():
-    """Página principal que muestra todas las canciones."""
+    """Página principal que muestra todas las canciones con paginación."""
     conn = get_db_connection()
-    canciones = conn.execute('SELECT * FROM canciones').fetchall()
-    # La conexión se cerrará automáticamente por @app.teardown_appcontext
-    return render_template('index.html', canciones=canciones)
+
+    # Obtener el número de página de la URL, por defecto es 1
+    page = request.args.get('page', 1, type=int)
+
+    # Calcular el desplazamiento (offset) para la consulta
+    offset = (page - 1) * CANCIONES_POR_PAGINA
+
+    # Obtener el número total de canciones para calcular el total de páginas
+    total_canciones = conn.execute('SELECT COUNT(*) FROM canciones').fetchone()[0]
+    total_paginas = (total_canciones + CANCIONES_POR_PAGINA - 1) // CANCIONES_POR_PAGINA
+
+    # Obtener solo las canciones de la página actual
+    canciones = conn.execute(
+        'SELECT * FROM canciones ORDER BY id DESC LIMIT ? OFFSET ?',
+        (CANCIONES_POR_PAGINA, offset)
+    ).fetchall()
+
+    # La conexión se cerrará automáticamente
+    return render_template(
+        'index.html',
+        canciones=canciones,
+        page=page,
+        total_paginas=total_paginas
+    )
+
 
 @app.route('/agregar', methods=['GET', 'POST'])
 def agregar_cancion():
