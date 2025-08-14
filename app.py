@@ -63,7 +63,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS canciones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             titulo TEXT NOT NULL,
-            artista TEXT NOT NULL,
+            letra TEXT NOT NULL,
             ruta_foto TEXT,
             url_web_foto TEXT
         )
@@ -100,7 +100,7 @@ def agregar_cancion():
     if request.method == 'POST':
         # Estas variables solo se necesitan y definen cuando se envía el formulario (POST)
         titulo = request.form['titulo']
-        artista = request.form['artista']
+        
         letra = request.form['letra']
         
         ruta_foto = None # Inicialmente no hay ruta de foto en DB
@@ -121,8 +121,8 @@ def agregar_cancion():
         conn = get_db_connection() # Obtener la conexión dentro del POST
         try:
             conn.execute(
-                'INSERT INTO canciones (titulo, artista, ruta_foto, letra) VALUES (?, ?, ?, ?)',
-                (titulo, artista, ruta_foto, letra)
+                'INSERT INTO canciones (titulo, ruta_foto, letra) VALUES (?, ?, ?)',
+                (titulo, ruta_foto, letra)
             )
             conn.commit()
             flash('Canción agregada exitosamente!', 'success')
@@ -158,7 +158,7 @@ def editar_cancion(id):
 
     if request.method == 'POST':
         titulo = request.form['titulo']
-        artista = request.form['artista']
+        
         letra = request.form['letra']
         
         ruta_foto_db = cancion['ruta_foto'] # Mantener la foto existente por defecto
@@ -180,8 +180,8 @@ def editar_cancion(id):
 
         try:
             conn.execute(
-                'UPDATE canciones SET titulo = ?, artista = ?, ruta_foto = ?, letra = ? WHERE id = ?',
-                (titulo, artista, ruta_foto_db, letra, id)
+                'UPDATE canciones SET titulo = ?, ruta_foto = ?, letra = ? WHERE id = ?',
+                (titulo, ruta_foto_db, letra, id)
             )
             conn.commit()
             flash('Canción actualizada exitosamente!', 'success')
@@ -210,7 +210,7 @@ def buscar():
     # En proyectos más complejos se usaría parametrización para evitar inyección SQL
     query_pattern = f'%{query}%'
     canciones = conn.execute(
-        'SELECT id, titulo, artista, ruta_foto, letra FROM canciones WHERE titulo LIKE ?',
+        'SELECT id, titulo, ruta_foto, letra FROM canciones WHERE titulo LIKE ?',
         (query_pattern,)
     ).fetchall()
     
