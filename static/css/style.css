@@ -16,60 +16,68 @@ h1 {
 }
 
 /* Estilos para Botones y Enlaces de Acción */
+.action-button {
+    display: inline-block;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    text-decoration: none;
+    color: #fff; /* Texto blanco para todos */
+    text-align: center;
+    transition: background-color 0.3s ease;
+    vertical-align: top;
+}
+
+/* Estilo al pasar el mouse por encima */
+.action-button:hover {
+    filter: brightness(110%);
+}
+
+/* Estilo para el botón de Editar */
+.edit-button {
+    background-color: #2196F3; /* Azul */
+}
+
+/* Estilo para el botón de Eliminar */
+.delete-button {
+    background-color: #f44336; /* Rojo */
+}
+
+/* Estilo para el botón de Subir a Web */
+.upload-button {
+    background-color: #4CAF50; /* Verde */
+}
+
+/* Otros botones, como "Agregar" y "Guardar Cambios" */
 .button {
-    display: inline-block; /* Permite aplicar padding y margin como un bloque */
-    background-color: #28a745; /* Verde para acciones primarias */
-    color: white;
+    background-color: #007bff; /* Azul oscuro */
+    color: #fff;
     padding: 10px 20px;
     border: none;
-    border-radius: 5px; /* Bordes más suaves */
-    text-decoration: none; /* Quita el subrayado por defecto */
-    font-size: 1em;
+    border-radius: 5px;
     cursor: pointer;
-    transition: background-color 0.3s ease; /* Transición suave al pasar el ratón */
-    margin-bottom: 20px; /* Espacio debajo del botón */
+    text-decoration: none;
+    font-size: 16px;
+    display: inline-block;
+    margin-top: 20px;
+    transition: background-color 0.3s ease;
 }
 
 .button:hover {
-    background-color: #218838;
-    text-decoration: none; /* Asegura que no se subraye al hover */
-}
-
-.action-button {
-    display: inline-block;
-    padding: 8px 12px;
-    border-radius: 4px;
-    text-decoration: none;
-    font-size: 0.9em;
-    margin-left: 10px; /* Espacio entre botones */
-    transition: background-color 0.2s ease;
-}
-
-.edit-button {
-    background-color: #007bff; /* Azul para editar */
-    color: white;
-}
-
-.edit-button:hover {
     background-color: #0056b3;
 }
 
-.delete-button {
-    background-color: #dc3545; /* Rojo para eliminar */
-    color: white;
+/* Estilo para el botón "Cancelar" */
+.cancel-button {
+    background-color: #6c757d; /* Gris */
+    margin-left: 10px;
 }
 
-.delete-button:hover {
-    background-color: #c82333;
-}
-
-.upload-button {
-    background-color: #6f42c1; /* Púrpura para subir a la web */
-    color: white;
-}
-
-.upload-button:hover {
-    background-color: #5a2c9b;
+.cancel-button:hover {
+    background-color: #5a6268;
 }
 
 /* Estilos de Lista de Canciones */
@@ -101,7 +109,13 @@ h1 {
 .song-image {
     flex-shrink: 0; /* Evita que la imagen se reduzca si no hay espacio */
 }
-
+.song-actions form {
+    display: inline;
+    margin: 0; /* Asegura que no haya márgenes alrededor del formulario */
+    padding: 0; /* Asegura que no haya relleno dentro del formulario */
+    border: none; /* Elimina cualquier borde predeterminado */
+    background-color: transparent; /* Hace el fondo transparente */
+}
 .foto-cancion {
     width: 100px; /* Tamaño de imagen fijo y un poco más pequeño */
     height: 100px; /* Mantener la proporción cuadrada */
