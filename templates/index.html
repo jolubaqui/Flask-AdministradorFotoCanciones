@@ -10,6 +10,10 @@
     <h1>Mis Canciones y sus Fotos</h1>
     <a href="{{ url_for('agregar_cancion') }}" class="button">Agregar nueva Canción</a>
 
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Buscar canción por título..." onkeyup="buscarCanciones()">
+    </div>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <ul class="flashes">
@@ -21,58 +25,141 @@
     {% endwith %}
 
     {% if canciones %}
-        <ul class="song-list">
-            {% for cancion in canciones %}
-                <li class="song-item">
-                    <div class="song-info">
-                        <strong>{{ cancion.titulo }}</strong> - {{ cancion.artista }}
-                    </div>
-                    
-                     <div class="song-image">
-                        {% if cancion.ruta_foto %}
-                            <img src="{{ url_for('static', filename=cancion.ruta_foto) }}" alt="Foto de {{ cancion.titulo }}" class="foto-cancion">
-                        {% else %}
-                            <span class="no-photo">No hay foto disponible</span>
+        <div id="song-list-container"> <ul class="song-list" id="initial-song-list">
+                {% for cancion in canciones %}
+                    <li class="song-item">
+                        <div class="song-info">
+                            <strong>{{ cancion.titulo }}</strong> - {{ cancion.artista }}
+                        </div>
+                        
+                        <div class="song-actions">
+                            <a href="{{ url_for('editar_cancion', id=cancion.id) }}" class="action-button edit-button">Editar</a>
+                            <form action="{{ url_for('eliminar_cancion', id=cancion.id) }}" method="post" style="display:inline;">
+                                <button type="submit" class="action-button delete-button" onclick="return confirm('¿Estás seguro de que quieres eliminar esta canción?');">
+                                    Eliminar
+                                </button>
+                            </form>
+                            {% if cancion.ruta_foto %}
+                                <form action="{{ url_for('subir_a_web', id=cancion.id) }}" method="post" style="display:inline;">
+                                    <button type="submit" class="action-button upload-button">Subir a Web</button>
+                                </form>
+                            {% endif %}
+                        </div>
+
+                        <div class="song-image">
+                            {% if cancion.ruta_foto %}
+                                <img src="{{ url_for('static', filename=cancion.ruta_foto) }}" alt="Foto de {{ cancion.titulo }}" class="foto-cancion">
+                            {% else %}
+                                <span class="no-photo">No hay foto disponible</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if cancion.url_web_foto %}
+                            <div class="web-url">
+                                URL Web: <a href="{{ cancion.url_web_foto }}" target="_blank">{{ cancion.url_web_foto }}</a>
+                            </div>
                         {% endif %}
-                    </div>
 
                         {% if cancion.letra %}
-                    <div class="song-lyrics-preview">
-                        <p>{{ cancion.letra[:300] }}
-                            {% if cancion.letra | length > 300 %}
-                            ...
-                            {% endif %}
-                        </p>
-                    </div>
-                    {% endif %}
+                            <div class="song-lyrics-preview">
+                                <p>{{ cancion.letra[:300] }}
+                                    {% if cancion.letra | length > 300 %}
+                                        ...
+                                    {% endif %}
+                                </p>
+                            </div>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div> {% else %}
+        <p>No hay canciones disponibles. ¡Agrega una!</p>
+    {% endif %}
 
+    <script>
+        // Función para construir el HTML de una canción a partir de los datos
+        function buildSongItem(cancion) {
+            // Lógica para truncar la letra a 300 caracteres
+            let lyricsPreview = '';
+            if (cancion.letra) {
+                const truncatedLyrics = cancion.letra.length > 300 ? cancion.letra.substring(0, 300) + '...' : cancion.letra;
+                lyricsPreview = `<div class="song-lyrics-preview"><p>${truncatedLyrics}</p></div>`;
+            }
+
+            // Lógica para la URL web
+            let webUrl = '';
+            if (cancion.url_web_foto) {
+                webUrl = `<div class="web-url">URL Web: <a href="${cancion.url_web_foto}" target="_blank">${cancion.url_web_foto}</a></div>`;
+            }
+
+            // Lógica para la foto
+            let photoHtml = cancion.ruta_foto ?
+                `<img src="/static/${cancion.ruta_foto}" alt="Foto de ${cancion.titulo}" class="foto-cancion">` :
+                `<span class="no-photo">No hay foto disponible</span>`;
+            
+            // Lógica para el botón de subir a la web
+            let uploadButton = cancion.ruta_foto ? `
+                <form action="/subir_a_web/${cancion.id}" method="post" style="display:inline;">
+                    <button type="submit" class="action-button upload-button">Subir a Web</button>
+                </form>` : '';
+            let html = `
+                <li class="song-item">
+                    <div class="song-info">
+                        <strong>${cancion.titulo}</strong> - ${cancion.artista}
+                    </div>
+                    
                     <div class="song-actions">
-                        <a href="{{ url_for('editar_cancion', id=cancion.id) }}" class="action-button edit-button">Editar</a>
-                        <form action="{{ url_for('eliminar_cancion', id=cancion.id) }}" method="post" style="display:inline;">
+                        <a href="/editar/${cancion.id}" class="action-button edit-button">Editar</a>
+                        <form action="/eliminar/${cancion.id}" method="post" style="display:inline;">
                             <button type="submit" class="action-button delete-button" onclick="return confirm('¿Estás seguro de que quieres eliminar esta canción?');">
                                 Eliminar
                             </button>
                         </form>
-                        {% if cancion.ruta_foto %}
-                            <form action="{{ url_for('subir_a_web', id=cancion.id) }}" method="post" style="display:inline;">
-                                <button type="submit" class="action-button upload-button">Subir a Web</button>
-                            </form>
-                        {% endif %}
+                        ${uploadButton}
+                        ${cancion.ruta_foto ? `
+                        <form action="/subir_a_web/${cancion.id}" method="post" style="display:inline;">
+                            <button type="submit" class="action-button upload-button">Subir a Web</button>
+                        </form>` : ''}
                     </div>
 
-                   
+                    <div class="song-image">
+                        ${photoHtml}
+                    </div>
                     
-                    {% if cancion.url_web_foto %}
-                        <div class="web-url">
-                            URL Web: <a href="{{ cancion.url_web_foto }}" target="_blank">{{ cancion.url_web_foto }}</a>
-                        </div>
-                    {% endif %}
-                </li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No hay canciones disponibles. ¡Agrega una!</p>
-    {% endif %} 
+                    ${lyricsPreview}
+                    
+                    </li>
+            `;
+            return html;
+        }
+
+        // Función principal que se activa al escribir en el campo de búsqueda
+        function buscarCanciones() {
+            const query = document.getElementById('searchInput').value;
+            const songListContainer = document.getElementById('song-list-container');
+
+            // Hacemos una llamada a la nueva ruta /buscar de Flask
+            fetch(`/buscar?q=${query}`)
+                .then(response => response.json()) // La respuesta viene como JSON, la convertimos a un objeto JavaScript
+                .then(canciones => {
+                    let htmlContent = `<ul class="song-list">`;
+                    if (canciones.length > 0) {
+                        canciones.forEach(cancion => {
+                            htmlContent += buildSongItem(cancion);
+                        });
+                    } else {
+                        htmlContent += `<li class="no-songs">No se encontraron canciones.</li>`;
+                    }
+                    htmlContent += `</ul>`;
+                    
+                    songListContainer.innerHTML = htmlContent; // Reemplazamos el contenido de la lista
+                })
+                .catch(error => {
+                    console.error('Error en la búsqueda:', error);
+                    songListContainer.innerHTML = `<p class="error">Ocurrió un error al buscar las canciones.</p>`;
+                });
+        }
+    </script> 
     
 </body>
 </html>

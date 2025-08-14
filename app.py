@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+from flask import Flask, jsonify
 
 # Define la ruta base del proyecto
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -192,6 +193,33 @@ def editar_cancion(id):
 
     # Para la petición GET, se muestra el formulario con los datos actuales
     return render_template('editar.html', cancion=cancion)
+
+# --- RUTA DE BÚSQUEDA ---
+@app.route('/buscar')
+def buscar():
+    """
+    Ruta para buscar canciones en tiempo real y devolver los resultados en JSON.
+    """
+    # Obtener el término de búsqueda de los argumentos de la URL (ej. ?q=nombre)
+    query = request.args.get('q', '')
+    conn = get_db_connection()
+    
+    # Usar LIKE para buscar coincidencias parciales, y el operador '%'
+    # Esto busca cualquier canción cuyo título contenga el texto de la búsqueda
+    # Usamos '%{}%'.format(query) para crear la cadena de búsqueda segura
+    # En proyectos más complejos se usaría parametrización para evitar inyección SQL
+    query_pattern = f'%{query}%'
+    canciones = conn.execute(
+        'SELECT id, titulo, artista, ruta_foto, letra FROM canciones WHERE titulo LIKE ?',
+        (query_pattern,)
+    ).fetchall()
+    
+    # Convertir la lista de objetos Row de SQLite a una lista de diccionarios
+    # para que se puedan serializar a JSON
+    canciones_json = [dict(cancion) for cancion in canciones]
+    
+    # Devolver la lista como una respuesta JSON
+    return jsonify(canciones_json)
 
 
 @app.route('/eliminar/<int:id>', methods=['POST'])
