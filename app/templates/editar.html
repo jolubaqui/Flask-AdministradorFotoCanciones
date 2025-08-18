@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Editar Canción</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <h1>Editar Canción</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %}
+    <ul class="flashes">
+      {% for category, message in messages %}
+      <li class="{{ category }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %} {% endwith %}
+
+    <form
+      action="{{ url_for('canciones.editar_cancion', id=cancion.id) }}"
+      method="post"
+      enctype="multipart/form-data"
+    >
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+      <label for="titulo">Título:</label>
+      <input
+        type="text"
+        id="titulo"
+        name="titulo"
+        value="{{ cancion.titulo|e }}"
+        required
+      />
+
+      <label for="letra">Letra:</label>
+      <textarea id="letra" name="letra" rows="5" maxlength="300">
+{{ cancion.letra|e }}</textarea
+      >
+
+      {% if cancion.url_web_foto %}
+      <p>Foto actual (en la nube):</p>
+      <img
+        src="{{ cancion.url_web_foto }}"
+        alt="Foto actual de {{ cancion.titulo|e }}"
+        class="foto-preview"
+      />
+      {% elif cancion.ruta_foto %}
+      <p>Foto actual (local):</p>
+      <img
+        src="{{ url_for('canciones.media', filename=cancion.ruta_foto) }}"
+        alt="Foto actual de {{ cancion.titulo|e }}"
+        class="foto-preview"
+      />
+      {% else %}
+      <p>No hay foto actual.</p>
+      {% endif %}
+
+      <label for="foto">Cambiar fotografía:</label>
+      <input type="file" id="foto" name="foto" accept="image/*" />
+
+      <button type="submit" class="button">Guardar cambios</button>
+      <a href="{{ url_for('canciones.index') }}" class="button cancel-button"
+        >Cancelar</a
+      >
+    </form>
+  </body>
+</html>

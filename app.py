@@ -1,328 +1,327 @@
-# importar flask
-from flask import Flask, render_template, request, redirect, url_for, flash, g # Importar 'g'
-import sqlite3
 import os
+import uuid
+import logging
+import sqlite3
+from pathlib import Path
+
+from flask import (
+    Flask, render_template, request, redirect, url_for, flash, g, jsonify,
+    send_from_directory, abort
+)
 from werkzeug.utils import secure_filename
+
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
-from flask import Flask, jsonify
+from cloudinary.exceptions import Error as CloudinaryError
 
-# Constante para la paginación
+from dotenv import load_dotenv
+
+from flask_wtf import CSRFProtect
+from flask_wtf.csrf import generate_csrf
+
+import bleach
+from PIL import Image
+from flask_talisman import Talisman
+
+# -----------------------------
+# Configuración y constantes
+# -----------------------------
+BASE_DIR = Path(__file__).resolve().parent
+INSTANCE_DIR = BASE_DIR / "instance"
+UPLOAD_DIR = INSTANCE_DIR / "uploads"
+DB_PATH = INSTANCE_DIR / "database.db"
+
 CANCIONES_POR_PAGINA = 5
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+MAX_CONTENT_LENGTH_MB = 16
 
-# Define la ruta base del proyecto
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-# ¡IMPORTANTE! Las fotos ahora se servirán como estáticas. Es buena práctica que estén dentro de 'static'
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'fotos_canciones')
-DATABASE = os.path.join(BASE_DIR, 'instance', 'database.db')
+INSTANCE_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+load_dotenv()
 
-# Asegúrate que las carpetas existan
-os.makedirs(os.path.join(BASE_DIR, 'instance'), exist_ok=True)
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# Configuración de Cloudinary
-cloudinary.config(
-    cloud_name = "dwcomv0hv", 
-    api_key = "646295341746146",  
-    api_secret = "0oid-hmmji7Hg8dMG6h-inbKsAw"  
+# -----------------------------
+# Crear app y extensiones
+# -----------------------------
+app = Flask(__name__)
+app.config.update(
+    SECRET_KEY=os.getenv("SECRET_KEY", "dev_secret_key"),
+    MAX_CONTENT_LENGTH=MAX_CONTENT_LENGTH_MB * 1024 * 1024,
+    WTF_CSRF_TIME_LIMIT=None,
 )
 
-# Crear la aplicación Flask
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['SECRET_KEY'] = 'tu_clave_secreta_real_y_segura_aqui'  # ¡IMPORTANTE! Cambia esto por una clave secreta real y compleja
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Opcional: Limitar tamaño de subida a 16MB
+csrf = CSRFProtect(app)
 
-# Extensiones de archivo permitidas para las fotos
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=generate_csrf)
 
-# Función para verificar si la extensión del archivo es permitida
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+if os.environ.get("FLASK_ENV") == "production":
+    Talisman(
+        app,
+        content_security_policy=None,
+        force_https=True,
+        strict_transport_security=True,
+        session_cookie_secure=True,
+    )
 
-# Función para conectar a la base de datos
-# Usamos 'g' para almacenar la conexión y reusarla en la misma solicitud
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUD_NAME"),
+    api_key=os.getenv("CLOUD_API_KEY"),
+    api_secret=os.getenv("CLOUD_API_SECRET"),
+)
+
+# -----------------------------
+# DB helpers
+# -----------------------------
 def get_db_connection():
-    if 'db' not in g:
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row  # Permite acceder a las columnas por nombre
+    if "db" not in g:
+        g.db = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES)
+        g.db.row_factory = sqlite3.Row
+        g.db.execute("PRAGMA foreign_keys = ON;")
+        g.db.execute("PRAGMA journal_mode = WAL;")
+        g.db.execute("PRAGMA synchronous = NORMAL;")
     return g.db
 
-# Función para cerrar la conexión a la base de datos al final de cada solicitud
 @app.teardown_appcontext
 def close_connection(exception):
-    db = g.pop('db', None)
+    db = g.pop("db", None)
     if db is not None:
         db.close()
 
-
 def init_db():
-    """Inicializa la base de datos y crea las tablas necesarias."""
-    conn = get_db_connection() # Usamos get_db_connection para que use 'g'
-    cursor = conn.cursor()
-    cursor.execute('''
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
         CREATE TABLE IF NOT EXISTS canciones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             titulo TEXT NOT NULL,
             letra TEXT NOT NULL,
             ruta_foto TEXT,
             url_web_foto TEXT
-        )
-    ''')
+        );
+        """
+    )
     conn.commit()
-    # No cerramos la conexión aquí, porque 'teardown_appcontext' lo hará.
-    print("Base de datos inicializada y tabla 'canciones' creada.")
+    app.logger.info("DB lista y tabla 'canciones' creada si no existía.")
 
-
-# --- ¡CORRECCIÓN IMPORTANTE AQUÍ! ---
-# Llama a init_db() fuera de su propia definición y dentro del contexto de la aplicación.
-# Esto asegura que se ejecute solo una vez al iniciar la app, si la DB no existe.
 with app.app_context():
-    # Solo inicializa la DB si el archivo no existe (para evitar sobrescribir datos en cada reinicio)
-    if not os.path.exists(DATABASE):
+    if not DB_PATH.exists():
         init_db()
     else:
-        # Si la DB ya existe, podrías querer hacer algo aquí, como un 'print'
-        print("La base de datos ya existe. Saltando la inicialización de tabla.")
+        app.logger.info("DB existente. Saltando init.")
 
+# -----------------------------
+# Utilidades
+# -----------------------------
+def allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- Rutas de la Aplicación ---
-@app.route('/')
+def sanitize_text(text: str) -> str:
+    allowed_tags = ["b", "i", "u", "em", "strong", "br", "p", "ul", "ol", "li"]
+    return bleach.clean(text or "", tags=allowed_tags, strip=True)
+
+def save_image_safely(file_storage) -> str:
+    if not file_storage or file_storage.filename == "":
+        raise ValueError("No se seleccionó archivo.")
+
+    if not allowed_file(file_storage.filename):
+        raise ValueError("Extensión no permitida.")
+
+    safe_name = secure_filename(file_storage.filename)
+    final_name = f"{uuid.uuid4().hex}_{safe_name}"
+    dest_path = UPLOAD_DIR / final_name
+    file_storage.save(dest_path)
+
+    try:
+        with Image.open(dest_path) as img:
+            img.verify()
+    except Exception:
+        dest_path.unlink(missing_ok=True)
+        raise ValueError("El archivo no es una imagen válida.")
+
+    return final_name
+
+# -----------------------------
+# Rutas
+# -----------------------------
+@app.route("/")
 def index():
-    """Página principal que muestra todas las canciones con paginación."""
     conn = get_db_connection()
-
-    # Obtener el número de página de la URL, por defecto es 1
-    page = request.args.get('page', 1, type=int)
-
-    # Calcular el desplazamiento (offset) para la consulta
+    page = request.args.get("page", 1, type=int)
+    query = request.args.get("q", "").strip()
     offset = (page - 1) * CANCIONES_POR_PAGINA
 
-    # Obtener el número total de canciones para calcular el total de páginas
-    total_canciones = conn.execute('SELECT COUNT(*) FROM canciones').fetchone()[0]
+    if query:
+        search_term = f"%{query}%"
+        query_count = "SELECT COUNT(*) FROM canciones WHERE titulo LIKE ? OR letra LIKE ?"
+        query_data = "SELECT * FROM canciones WHERE titulo LIKE ? OR letra LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?"
+        params_count = (search_term, search_term)
+        params_data = (search_term, search_term, CANCIONES_POR_PAGINA, offset)
+    else:
+        query_count = "SELECT COUNT(*) FROM canciones"
+        query_data = "SELECT * FROM canciones ORDER BY id DESC LIMIT ? OFFSET ?"
+        params_count = ()
+        params_data = (CANCIONES_POR_PAGINA, offset)
+        
+    total_canciones = conn.execute(query_count, params_count).fetchone()[0]
     total_paginas = (total_canciones + CANCIONES_POR_PAGINA - 1) // CANCIONES_POR_PAGINA
 
-    # Obtener solo las canciones de la página actual
-    canciones = conn.execute(
-        'SELECT * FROM canciones ORDER BY id DESC LIMIT ? OFFSET ?',
-        (CANCIONES_POR_PAGINA, offset)
-    ).fetchall()
+    canciones = conn.execute(query_data, params_data).fetchall()
 
-    # La conexión se cerrará automáticamente
     return render_template(
-        'index.html',
+        "index.html",
         canciones=canciones,
         page=page,
-        total_paginas=total_paginas
+        total_paginas=total_paginas,
     )
 
-
-@app.route('/agregar', methods=['GET', 'POST'])
+@app.route("/agregar", methods=["GET", "POST"])
 def agregar_cancion():
-    """Página para agregar una nueva canción."""
-    if request.method == 'POST':
-        # Estas variables solo se necesitan y definen cuando se envía el formulario (POST)
-        titulo = request.form['titulo']
-        
-        letra = request.form['letra']
-        
-        ruta_foto = None # Inicialmente no hay ruta de foto en DB
-        
-        # Lógica para manejar la subida de la foto
-        if 'foto' in request.files:
-            foto_file = request.files['foto']
-            if foto_file.filename != '' and allowed_file(foto_file.filename):
-                filename = secure_filename(foto_file.filename)
-                foto_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                foto_file.save(foto_path)
-                ruta_foto = os.path.join('fotos_canciones/', filename) 
-            else:
-                flash('No se seleccionó una foto o el formato no es permitido.', 'warning')
-        else:
-            flash('No se encontró el campo de archivo "foto". Asegúrate de que tu formulario HTML sea correcto.', 'error')
-
-        conn = get_db_connection() # Obtener la conexión dentro del POST
+    if request.method == "POST":
         try:
+            titulo = sanitize_text(request.form.get("titulo"))
+            letra = sanitize_text(request.form.get("letra"))
+
+            ruta_foto = None
+            foto_file = request.files.get("foto")
+            if foto_file and foto_file.filename:
+                final_name = save_image_safely(foto_file)
+                ruta_foto = final_name
+
+            conn = get_db_connection()
             conn.execute(
-                'INSERT INTO canciones (titulo, ruta_foto, letra) VALUES (?, ?, ?)',
-                (titulo, ruta_foto, letra)
+                "INSERT INTO canciones (titulo, ruta_foto, letra) VALUES (?, ?, ?)",
+                (titulo, ruta_foto, letra),
             )
             conn.commit()
-            flash('Canción agregada exitosamente!', 'success')
-            return redirect(url_for('index'))
-        except sqlite3.IntegrityError:
-            flash('Error de integridad: Puede que ya exista una entrada similar.', 'error')
+            flash("Canción agregada exitosamente!", "success")
+            return redirect(url_for("index"))
+        except ValueError as ve:
+            flash(str(ve), "warning")
+            return render_template("agregar.html")
         except Exception as e:
-            flash(f'Error al agregar la canción: {e}', 'error')
-        finally:
-            # La conexión se cerrará automáticamente por @app.teardown_appcontext
-            pass 
+            app.logger.exception("Error en /agregar")
+            flash(f"Error al agregar la canción: {e}", "error")
+            return render_template("agregar.html")
 
-    # Esto se ejecuta si es un GET, o si un POST falló y no hubo un redirect
-    return render_template('agregar.html')
+    return render_template("agregar.html")
 
-# ... (tu código app.py existente, incluyendo importaciones y configuraciones) ...
-
-# ... (tus rutas index y agregar_cancion) ...
-
-@app.route('/editar/<int:id>', methods=['GET', 'POST'])
-def editar_cancion(id):
-    """
-    Página para editar una canción existente.
-    GET: Muestra el formulario con los datos actuales de la canción.
-    POST: Procesa los cambios enviados por el formulario.
-    """
+@app.route("/editar/<int:id>", methods=["GET", "POST"])
+def editar_cancion(id: int):
     conn = get_db_connection()
-    cancion = conn.execute('SELECT * FROM canciones WHERE id = ?', (id,)).fetchone()
+    cancion = conn.execute("SELECT * FROM canciones WHERE id = ?", (id,)).fetchone()
+    if not cancion:
+        flash("Canción no encontrada", "error")
+        return redirect(url_for("index"))
 
-    if cancion is None:
-        flash('Canción no encontrada.', 'error')
-        return redirect(url_for('index'))
-
-    if request.method == 'POST':
-        titulo = request.form['titulo']
-        
-        letra = request.form['letra']
-        
-        ruta_foto_db = cancion['ruta_foto'] # Mantener la foto existente por defecto
-        
-        # Lógica para manejar la subida de una NUEVA foto
-        if 'foto' in request.files:
-            foto_file = request.files['foto']
-            if foto_file.filename != '' and allowed_file(foto_file.filename):
-                filename = secure_filename(foto_file.filename)
-                foto_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                foto_file.save(foto_path)
-                ruta_foto_db = os.path.join('fotos_canciones/', filename)
-                flash('Foto de canción actualizada exitosamente!', 'success')
-            elif foto_file.filename == '':
-                # El usuario no seleccionó una nueva foto, mantiene la existente
-                pass 
-            else:
-                flash('El formato de la nueva foto no es permitido.', 'warning')
-
+    if request.method == "POST":
         try:
+            titulo = sanitize_text(request.form.get("titulo"))
+            letra = sanitize_text(request.form.get("letra"))
+            ruta_foto_db = cancion["ruta_foto"]
+            url_web_foto_db = cancion["url_web_foto"]
+
+            foto_file = request.files.get("foto")
+            if foto_file and foto_file.filename:
+                # Si se sube una nueva foto, reemplaza la anterior
+                if ruta_foto_db:
+                    (UPLOAD_DIR / ruta_foto_db).unlink(missing_ok=True)
+                
+                final_name = save_image_safely(foto_file)
+                ruta_foto_db = final_name
+                url_web_foto_db = None
+                flash("Foto de canción actualizada!", "success")
+
             conn.execute(
-                'UPDATE canciones SET titulo = ?, ruta_foto = ?, letra = ? WHERE id = ?',
-                (titulo, ruta_foto_db, letra, id)
+                "UPDATE canciones SET titulo = ?, letra = ?, ruta_foto = ?, url_web_foto = ? WHERE id = ?",
+                (titulo, letra, ruta_foto_db, url_web_foto_db, id),
             )
             conn.commit()
-            flash('Canción actualizada exitosamente!', 'success')
-            return redirect(url_for('index'))
+            flash("Canción actualizada correctamente", "success")
+            return redirect(url_for("index"))
+        except ValueError as ve:
+            flash(str(ve), "warning")
+            return render_template("editar.html", cancion=cancion)
         except Exception as e:
-            flash(f'Error al actualizar la canción: {e}', 'error')
-        finally:
-            conn.close() # Aunque tenemos teardown_appcontext, es buena práctica cerrar si se abre manualmente
+            app.logger.exception("Error en /editar")
+            flash(f"Error al actualizar: {e}", "error")
+            return render_template("editar.html", cancion=cancion)
 
-    # Para la petición GET, se muestra el formulario con los datos actuales
-    return render_template('editar.html', cancion=cancion)
+    return render_template("editar.html", cancion=cancion)
 
-# --- RUTA DE BÚSQUEDA ---
-@app.route('/buscar')
-def buscar():
-    """
-    Ruta para buscar canciones en tiempo real y devolver los resultados en JSON.
-    """
-    # Obtener el término de búsqueda de los argumentos de la URL (ej. ?q=nombre)
-    query = request.args.get('q', '')
-    conn = get_db_connection()
-    
-    # Usar LIKE para buscar coincidencias parciales, y el operador '%'
-    # Esto busca cualquier canción cuyo título contenga el texto de la búsqueda
-    # Usamos '%{}%'.format(query) para crear la cadena de búsqueda segura
-    # En proyectos más complejos se usaría parametrización para evitar inyección SQL
-    query_pattern = f'%{query}%'
-    canciones = conn.execute(
-        'SELECT id, titulo, ruta_foto, letra FROM canciones WHERE titulo LIKE ?',
-        (query_pattern,)
-    ).fetchall()
-    
-    # Convertir la lista de objetos Row de SQLite a una lista de diccionarios
-    # para que se puedan serializar a JSON
-    canciones_json = [dict(cancion) for cancion in canciones]
-    
-    # Devolver la lista como una respuesta JSON
-    return jsonify(canciones_json)
-
-
-@app.route('/eliminar/<int:id>', methods=['POST'])
-def eliminar_cancion(id):
-    """
-    Ruta para eliminar una canción de la base de datos.
-    Solo acepta peticiones POST para mayor seguridad.
-    """
+@app.route("/eliminar/<int:id>", methods=["POST"])
+def eliminar_cancion(id: int):
     conn = get_db_connection()
     try:
-        conn.execute('DELETE FROM canciones WHERE id = ?', (id,))
+        row = conn.execute("SELECT ruta_foto FROM canciones WHERE id = ?", (id,)).fetchone()
+        if row and row["ruta_foto"]:
+            try:
+                (UPLOAD_DIR / row["ruta_foto"]).unlink(missing_ok=True)
+            except Exception:
+                pass
+        conn.execute("DELETE FROM canciones WHERE id = ?", (id,))
         conn.commit()
-        flash('Canción eliminada exitosamente!', 'success')
+        flash("Canción eliminada correctamente", "success")
     except Exception as e:
-        flash(f'Error al eliminar la canción: {e}', 'error')
-    finally:
-        # La conexión se cerrará automáticamente por @app.teardown_appcontext
-        pass 
-    
-    return redirect(url_for('index'))
+        app.logger.exception("Error en /eliminar")
+        flash(f"Error al eliminar: {e}", "error")
+    return redirect(url_for("index"))
 
-@app.route('/subir_a_web/<int:id>', methods=['POST'])
-def subir_a_web(id):
-    """
-    Ruta PLACEHOLDER para subir la foto de una canción a un servicio web externo.
-    Por ahora, solo mostrará un mensaje y redirigirá.
-    La lógica real de subida a la nube iría aquí.
-    """
+@app.route("/subir_a_web/<int:id>", methods=["POST"])
+def subir_a_web(id: int):
     conn = get_db_connection()
-    cancion = conn.execute('SELECT * FROM canciones WHERE id = ?', (id,)).fetchone()
+    cancion = conn.execute("SELECT * FROM canciones WHERE id = ?", (id,)).fetchone()
+    
+    if not cancion or not cancion["ruta_foto"]:
+        flash("Canción o foto no encontrada.", "error")
+        return redirect(url_for("index"))
 
-    if cancion is None:
-        flash('Canción no encontrada para subir a la web.', 'error')
-        return redirect(url_for('index'))
+    ruta_local_abs = UPLOAD_DIR / cancion["ruta_foto"]
+    if not ruta_local_abs.exists():
+        flash(f"El archivo local no existe: {ruta_local_abs}", "error")
+        return redirect(url_for("index"))
+    
+    try:
+        public_id = f"canciones/{cancion['id']}_{Path(cancion['ruta_foto']).stem}"
+        response = cloudinary.uploader.upload(str(ruta_local_abs), public_id=public_id)
+        url_web = response.get("secure_url")
 
-    # --- Lógica Placeholder (temporal) ---
-    if cancion['ruta_foto']:
-        # Construir la ruta completa al archivo de la foto local
-        ruta_foto_local_completa = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(cancion['ruta_foto']))
-        
-        # Verificar si el archivo de la foto local existe
-        if not os.path.exists(ruta_foto_local_completa):
-            flash(f"Error: La foto local para '{cancion['titulo']}' no se encontró en {ruta_foto_local_completa}.", 'error')
-            return redirect(url_for('index'))
+        conn.execute("UPDATE canciones SET url_web_foto = ? WHERE id = ?", (url_web, id))
+        conn.commit()
+        flash(f"Foto subida con éxito. URL: {url_web}", "success")
 
-        try:
-            # Subir la foto a Cloudinary
-            
-            # Usaremos el ID de la canción como parte del public_id para que sea único y fácil de encontrar.
-            public_id_cloudinary = f"canciones/{cancion['id']}_{secure_filename(os.path.basename(cancion['ruta_foto']).split('.')[0])}"
-            
-            # response = cloudinary.uploader.upload(ruta_foto_local_completa, public_id=public_id_cloudinary, overwrite=True)
-            # Para evitar sobrescribir si el nombre de archivo es similar, se puede omitir overwrite=True
-            response = cloudinary.uploader.upload(ruta_foto_local_completa, public_id=public_id_cloudinary)
+    except CloudinaryError as e:
+        app.logger.exception("Cloudinary error")
+        flash(f"Error al subir a Cloudinary: {e}", "error")
+    except Exception as e:
+        app.logger.exception("Error inesperado en /subir_a_web")
+        flash(f"Error inesperado: {e}", "error")
 
-            # Cloudinary devuelve la URL segura (https) de la imagen subida
-            url_web_foto_cloudinary = response['secure_url']
+    return redirect(url_for("index"))
 
-            # Actualizar la base de datos con la URL de la foto en la nube
-            conn.execute(
-                'UPDATE canciones SET url_web_foto = ? WHERE id = ?',
-                (url_web_foto_cloudinary, id)
-            )
-            conn.commit()
-            flash(f"Foto de '{cancion['titulo']}' subida a la web exitosamente! URL: {url_web_foto_cloudinary}", 'success')
+@app.route("/media/<path:filename>")
+def media(filename: str):
+    safe_name = Path(secure_filename(filename)).name
+    file_path = UPLOAD_DIR / safe_name
+    if not file_path.exists():
+        abort(404)
+    return send_from_directory(UPLOAD_DIR, safe_name)
 
-        except cloudinary.exceptions.Error as e:
-            flash(f'Error al subir la foto a Cloudinary: {e}', 'error')
-        except Exception as e:
-            flash(f'Error inesperado al subir la foto: {e}', 'error')
+# -----------------------------
+# Arranque
+# -----------------------------
+if __name__ == "__main__":
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", "5000"))
+    if os.environ.get("FLASK_ENV") == "production":
+        app.run(host=host, port=port)
     else:
-        flash(f"La canción '{cancion['titulo']}' no tiene una foto local para subir.", 'warning')
-
-    # La conexión se cerrará automáticamente por @app.teardown_appcontext
-    return redirect(url_for('index'))
-
-
-# ejecutar la aplicación
-if __name__ == '__main__':
-    print(f"DEBUG: Intentando usar la base de datos en: {DATABASE}")
-    app.run(debug=True)
+        app.run(host=host, port=port, debug=True)

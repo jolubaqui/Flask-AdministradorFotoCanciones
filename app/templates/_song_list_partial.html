@@ -1,0 +1,93 @@
+{% if canciones %}
+<div class="song-list">
+  {% for cancion in canciones %}
+  <div class="song-card">
+    <div class="song-media">
+      {% if cancion.url_web_foto %}
+      <img
+        src="{{ cancion.url_web_foto }}"
+        alt="Foto de {{ cancion.titulo|e }}"
+        class="song-image"
+      />
+      <a
+        href="{{ cancion.url_web_foto }}"
+        target="_blank"
+        class="download-button"
+        download
+      >
+        Descargar
+      </a>
+      {% elif cancion.ruta_foto %}
+      <img
+        src="{{ url_for('canciones.media', filename=cancion.ruta_foto) }}"
+        alt="Foto de {{ cancion.titulo|e }}"
+        class="song-image"
+      />
+      <a
+        href="{{ url_for('canciones.media', filename=cancion.ruta_foto) }}"
+        target="_blank"
+        class="download-button"
+        download
+      >
+        Descargar
+      </a>
+      {% else %}
+      <div class="no-image">Sin foto</div>
+      {% endif %}
+    </div>
+    <div class="song-content">
+      <h2>{{ cancion.titulo|e }}</h2>
+      <div class="lyrics-container">
+        <button
+          class="copy-button"
+          onclick="copyToClipboard('lyrics-{{ cancion.id }}')"
+        >
+          Copiar Texto
+        </button>
+        <p class="song-lyrics" id="lyrics-{{ cancion.id }}">
+          {{ cancion.letra|e }}
+        </p>
+      </div>
+    </div>
+    <div class="song-actions">
+      <a
+        href="{{ url_for('canciones.editar_cancion', id=cancion.id) }}"
+        class="button"
+        >Editar</a
+      >
+      <form
+        action="{{ url_for('canciones.eliminar_cancion', id=cancion.id) }}"
+        method="POST"
+        class="inline-form"
+        onsubmit="return confirm('¿Seguro que deseas eliminar esta canción?');"
+      >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <button type="submit" class="button delete-button">Eliminar</button>
+      </form>
+      {% if cancion.ruta_foto and not cancion.url_web_foto %}
+      <form
+        action="{{ url_for('canciones.subir_a_web', id=cancion.id) }}"
+        method="POST"
+        class="inline-form"
+      >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <button type="submit" class="button">Subir a la nube</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if total_paginas > 1 %}
+<div class="pagination">
+  {% if page > 1 %}
+  <a href="{{ url_for('canciones.index', page=page-1, q=query) }}">Anterior</a>
+  {% endif %} Página {{ page }} de {{ total_paginas }} {% if page <
+  total_paginas %}
+  <a href="{{ url_for('canciones.index', page=page+1, q=query) }}">Siguiente</a>
+  {% endif %}
+</div>
+{% endif %} {% else %}
+<p class="no-songs-message">No hay canciones registradas.</p>
+{% endif %}

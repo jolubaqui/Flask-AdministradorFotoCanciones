@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Catálogo de Fotos y Letras</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+  </head>
+  <body>
+    <h1>Catálogo de Fotos y Letras</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %}
+    <ul class="flashes">
+      {% for category, message in messages %}
+      <li class="{{ category }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %} {% endwith %}
+
+    <a href="{{ url_for('canciones.agregar_cancion') }}" class="button"
+      >Agregar Canción</a
+    >
+
+    <form
+      id="search-form"
+      action="{{ url_for('canciones.index') }}"
+      method="GET"
+      class="search-form"
+    >
+      <input
+        type="text"
+        id="search-input"
+        name="q"
+        placeholder="Buscar por título o letra..."
+        value="{{ request.args.get('q', '') }}"
+        class="search-input"
+      />
+    </form>
+
+    <div id="loading" style="display: none">Cargando...</div>
+
+    <div id="song-results">{% include '_song_list_partial.html' %}</div>
+  </body>
+</html>
